@@ -1,4 +1,4 @@
-(ns sushi
+(ns sushi.core
   (:import org.lwjgl.Sys
            org.lwjgl.input.Keyboard
            [org.lwjgl.opengl Display GL11]))
@@ -7,13 +7,17 @@
   "Evaluate body in its own thread"
   `(.start (Thread. (fn [] ~@body) ~thread-name)))
 
+(defmacro sync-loop [& body]
+  "Synchronously loop body until it evaluates to false"
+  `(loop [running# true]
+     (if (not running#)
+       nil
+       (recur (do ~@body)))))
+
 (defmacro async-loop [thread-name & body]
   "Asynchronously loop body until it evaluates to false"
   `(in-thread ~thread-name
-     (loop [running# true]
-       (if (not running#)
-         nil
-         (recur (do ~@body))))))
+     (sync-loop ~@body)))
 
 (defmacro push-matrix [& code]
   "War body between a glPushMatrix/glPopMatrix pair"
@@ -82,18 +86,20 @@
       (:running @state))
 
     ; Update input loop
-    (async-loop "Sushi:Input"
-      (if (Display/isCloseRequested)
-        (change state :running false)
-        (dorun
-          (map (fn [item]
-                 (if (Keyboard/isKeyDown (first item))
-                   (change state
-                           (second item)
-                           ((last item) @state))))
-               input-map)))
-      (Thread/sleep 1)
-      (:running @state))
+    (in-thread  "Sushi:Input"
+      (let [input-state {}]
+        (sync-loop
+          (if (Display/isCloseRequested)
+            (change state :running false)
+            (dorun
+              (map (fn [item]
+                     (if (Keyboard/isKeyDown (first item))
+                       (change state
+                               (second item)
+                               ((last item) @state))))
+                   input-map)))
+          (Thread/sleep 1)
+          (:running @state))))
 
     ; Update display loop
     (.setName (Thread/currentThread) "Sushi:Renderer")

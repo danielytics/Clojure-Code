@@ -1,6 +1,5 @@
 (ns snake
-  (:import org.lwjgl.input.Keyboard)
-  (:use sushi
+  (:use sushi.sushi
         [clojure.contrib.seq-utils :only (includes?)]))
 
 ; Snake game implemented in proposed DSL:
@@ -51,8 +50,7 @@
   (= head apple))
 
 ; Define and run the game
-(game
-  (name "Snake Game")
+(game "Snake Game"
   ; Set the initial state
   (start-state :title)
 
@@ -115,17 +113,18 @@
                           :down  DIR_DOWN
                           :left  DIR_LEFT
                           :right DIR_RIGHT} v)})
+          (on :eat [v s]
+              {:eat true})
 
           (on :move [v s]
-            (let [body (move s
-                             (if (eats? (first (get-entities :Apple s)))
-                                 true))]
+            (let [body (move s (:eat s))]
               (if (includes? body (first (:body s)))
                 {:game-over true}
-                body)))
+                (conj {:eat false} body))))
 
           (on :update [v s]
             (when-not (:game-over s)
+              (event :try-eat nil)
               (event :move nil)))
 
           ; Define how a snake is to be drawn
@@ -139,6 +138,11 @@
         (entity :Apple
           (on :init [v s]
             (make-apple))
+
+          (on :try-eat [v s]
+              (when (= (:location s) v)
+                (event :eat nil)
+                (event :new-apple)))
 
           (on :new-apple [v s]
             (make-apple))
