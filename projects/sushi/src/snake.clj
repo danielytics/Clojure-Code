@@ -87,7 +87,11 @@
           (on :select [v s]
             (let [sel (:selection s)]
               (cond (= sel MENU_PLAY) (state :game)
-                    (= sel MENU_QUIT) (state :terminate)))))))
+                    (= sel MENU_QUIT) (state :terminate))))
+          
+          ; Render the menu
+          (render [s]
+            nil))))
 
     ; Game mode
     (state :game
