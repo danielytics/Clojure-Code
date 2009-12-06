@@ -145,9 +145,9 @@
           
           ; Define how an apple is to be drawn
           (render [s]
-            [:quad
-             (point-to-screen-rect (:location s))
-             (:color s)
-             nil]))))))
+            [[:quad
+              (point-to-screen-rect (:location s))
+              (:color s)
+              nil]]))))))
 
 
