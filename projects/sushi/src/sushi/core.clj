@@ -9,15 +9,13 @@
 
 (defmacro sync-loop [& body]
   "Synchronously loop body until it evaluates to false"
-  `(loop [running# true]
-     (if (not running#)
-       nil
-       (recur (do ~@body)))))
+  `(while (do ~@body) nil))
 
-(defmacro async-loop [thread-name & body]
+(defmacro async-loop [thread-name let-binding & body]
   "Asynchronously loop body until it evaluates to false"
   `(in-thread ~thread-name
-     (sync-loop ~@body)))
+     (let ~let-binding
+       (sync-loop ~@body))))
 
 (defmacro push-matrix [& code]
   "War body between a glPushMatrix/glPopMatrix pair"
@@ -66,9 +64,9 @@
   (swap! state conj {field value}))
 
 (defn run-game [title
-                new-state
-                logic render
-                input-map]
+                start-state
+                state-list]
+
   (Display/setTitle title)
   (Display/setFullscreen false)
   (Display/setVSyncEnabled true)
@@ -78,38 +76,38 @@
   ; Put the window into orthographic projection mode with 1:1 pixel ratio.
   (init-ortho)
 
-  (let [state (atom (new-state))]
+  (let [state (atom (start-state state-list))i
+        current-state #(:name @state)
+        running #(= (current-state) :terminate)]
     ; Update logic loop
-    (async-loop "Sushi:Logic"
+    (async-loop "Sushi:Logic" []
       (swap! state conj (logic @state))
       (Thread/sleep 1)
       (:running @state))
 
     ; Update input loop
-    (in-thread  "Sushi:Input"
-      (let [input-state {}]
-        (sync-loop
-          (if (Display/isCloseRequested)
-            (change state :running false)
-            (dorun
-              (map (fn [item]
-                     (if (Keyboard/isKeyDown (first item))
-                       (change state
-                               (second item)
-                               ((last item) @state))))
-                   input-map)))
-          (Thread/sleep 1)
-          (:running @state))))
+    (async-loop "Sushi:Input" [input-state {}]
+      (if (Display/isCloseRequested)
+        (change state :running false)
+        (dorun
+          (map (fn [item]
+                 (if (Keyboard/isKeyDown (first item))
+                   (change state
+                           (second item)
+                           ((last item) @state))))
+               input-map)))
+      (Thread/sleep 1)
+      (:running @state)))
 
     ; Update display loop
     (.setName (Thread/currentThread) "Sushi:Renderer")
-    (while (:running @state)
+    (sync-loop
       (Display/update)
       (if (Display/isActive)
         (do
           (render @state)
           (Display/sync 60))
-        (do
+      1  (do
           (Thread/sleep 100)
           (when (or (Display/isVisible)
                     (Display/isDirty))

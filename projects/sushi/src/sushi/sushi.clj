@@ -1,6 +1,5 @@
 (ns sushi.sushi
-  (:use core
-        logic))
+  (:use core))
 
 (defmacro on [event header & body]
   {event `(fn ~header ~@body)})
@@ -51,7 +50,6 @@
 (defn game [name start states]
   (run-game name
             start
-            states
-            logic-func
-            render-func))
+            (conj states
+                  (state :terminate nil nil))))
 
